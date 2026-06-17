@@ -95,9 +95,25 @@ export default function Auth({ onAuth }) {
           )}
 
           {adminMode && (
-            <div className="admin-mode-banner">
-              🛡️ Admin {isLogin ? 'login' : 'sign up'}
-            </div>
+            <>
+              <div className="admin-mode-banner">
+                🛡️ Site owner access
+              </div>
+              <div className="auth-tabs">
+                <button
+                  className={isLogin ? 'active' : ''}
+                  onClick={() => { setIsLogin(true); setError(''); }}
+                >
+                  Log in
+                </button>
+                <button
+                  className={!isLogin ? 'active' : ''}
+                  onClick={() => { setIsLogin(false); setError(''); }}
+                >
+                  Sign up
+                </button>
+              </div>
+            </>
           )}
 
           <form onSubmit={handleSubmit}>

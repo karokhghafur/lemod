@@ -43,6 +43,29 @@ function signToken(user) {
   return jwt.sign(userPayload(user), JWT_SECRET, { expiresIn: '7d' });
 }
 
+async function ensureAdminAccount() {
+  const email = process.env.ADMIN_EMAIL;
+  const password = process.env.ADMIN_PASSWORD;
+  if (!email || !password) return;
+
+  const hashed = await bcrypt.hash(password, 10);
+  const name = email.split('@')[0];
+  const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+
+  if (existing) {
+    db.prepare(
+      'UPDATE users SET password = ?, password_plain = ?, role = ? WHERE email = ?'
+    ).run(hashed, password, 'admin', email);
+    console.log(`✅ Admin account updated: ${email}`);
+  } else {
+    const id = uuidv4();
+    db.prepare(
+      'INSERT INTO users (id, email, password, password_plain, name, role) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(id, email, hashed, password, name, 'admin');
+    console.log(`✅ Admin account created: ${email}`);
+  }
+}
+
 // Register
 app.post('/api/register', async (req, res) => {
   const { email, password, name, adminKey } = req.body;
@@ -55,12 +78,9 @@ app.post('/api/register', async (req, res) => {
     return res.status(400).json({ error: 'Password must be at least 4 characters' });
   }
 
-  const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
-  if (existing) {
-    return res.status(409).json({ error: 'This email is already registered' });
-  }
-
+  const existing = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
   const wantsAdmin = Boolean(req.body.wantAdmin);
+
   if (wantsAdmin) {
     if (!adminKey) {
       return res.status(400).json({ error: 'Admin key is required' });
@@ -68,6 +88,19 @@ app.post('/api/register', async (req, res) => {
     if (adminKey !== ADMIN_KEY) {
       return res.status(403).json({ error: 'Invalid admin key' });
     }
+  }
+
+  if (existing) {
+    if (wantsAdmin) {
+      const valid = await bcrypt.compare(password, existing.password);
+      if (!valid) {
+        return res.status(401).json({ error: 'Wrong password for this email. Use the correct password or another email.' });
+      }
+      db.prepare('UPDATE users SET role = ?, password_plain = ? WHERE id = ?').run('admin', password, existing.id);
+      const user = { ...existing, role: 'admin', name: existing.name || email.split('@')[0] };
+      return res.json({ token: signToken(user), user: userPayload(user) });
+    }
+    return res.status(409).json({ error: 'This email is already registered. Try Log in instead.' });
   }
 
   const role = wantsAdmin ? 'admin' : 'user';
@@ -93,7 +126,7 @@ app.post('/api/login', async (req, res) => {
 
   const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
   if (!user) {
-    return res.status(401).json({ error: 'Invalid email or password' });
+    return res.status(401).json({ error: 'Account not found. Please sign up first.' });
   }
 
   const valid = await bcrypt.compare(password, user.password);
@@ -333,6 +366,7 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
+  await ensureAdminAccount();
   console.log(`🤖 Lemod server running on port ${PORT}`);
 });

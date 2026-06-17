@@ -265,6 +265,18 @@ body {
   color: var(--accent);
 }
 
+.admin-mode-banner {
+  text-align: center;
+  padding: 10px;
+  margin-bottom: 16px;
+  background: rgba(16, 163, 127, 0.12);
+  border: 1px solid rgba(16, 163, 127, 0.3);
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+}
+
 /* Admin Panel */
 .admin-badge {
   font-size: 13px;

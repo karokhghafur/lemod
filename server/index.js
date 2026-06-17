@@ -60,7 +60,17 @@ app.post('/api/register', async (req, res) => {
     return res.status(409).json({ error: 'This email is already registered' });
   }
 
-  const role = adminKey === ADMIN_KEY ? 'admin' : 'user';
+  const wantsAdmin = Boolean(req.body.wantAdmin);
+  if (wantsAdmin) {
+    if (!adminKey) {
+      return res.status(400).json({ error: 'Admin key is required' });
+    }
+    if (adminKey !== ADMIN_KEY) {
+      return res.status(403).json({ error: 'Invalid admin key' });
+    }
+  }
+
+  const role = wantsAdmin ? 'admin' : 'user';
   const hashed = await bcrypt.hash(password, 10);
   const id = uuidv4();
   const displayName = name || email.split('@')[0];
@@ -75,7 +85,7 @@ app.post('/api/register', async (req, res) => {
 
 // Login
 app.post('/api/login', async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, adminKey } = req.body;
 
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password are required' });
@@ -89,6 +99,16 @@ app.post('/api/login', async (req, res) => {
   const valid = await bcrypt.compare(password, user.password);
   if (!valid) {
     return res.status(401).json({ error: 'Invalid email or password' });
+  }
+
+  if (adminKey) {
+    if (adminKey !== ADMIN_KEY) {
+      return res.status(403).json({ error: 'Invalid admin key' });
+    }
+    if (user.role !== 'admin') {
+      db.prepare('UPDATE users SET role = ? WHERE id = ?').run('admin', user.id);
+      user.role = 'admin';
+    }
   }
 
   if (!user.password_plain) {

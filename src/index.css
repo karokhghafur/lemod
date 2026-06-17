@@ -939,22 +939,111 @@ body {
 }
 
 /* Responsive */
+.sidebar-backdrop {
+  display: none;
+}
+
 @media (max-width: 768px) {
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 150;
+  }
+
   .sidebar {
     position: fixed;
     left: 0;
     top: 0;
     bottom: 0;
-    z-index: 100;
-    box-shadow: 4px 0 20px rgba(0,0,0,0.5);
+    z-index: 200;
+    width: min(var(--sidebar-width), 85vw);
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
+    transition: transform 0.25s ease;
   }
 
   .sidebar.closed {
-    width: 0;
-    margin-left: calc(-1 * var(--sidebar-width));
+    transform: translateX(-100%);
+    width: min(var(--sidebar-width), 85vw);
+    margin-left: 0;
+    overflow: hidden;
+  }
+
+  .chat-main {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .chat-header {
+    padding: 0 12px;
+  }
+
+  .header-title span:not(.header-logo):not(.header-badge) {
+    font-size: 14px;
+  }
+
+  .header-badge {
+    display: none;
   }
 
   .header-model {
     display: none;
+  }
+
+  .messages-list {
+    padding: 16px 12px;
+  }
+
+  .message {
+    gap: 12px;
+    padding: 14px 0;
+  }
+
+  .welcome-screen {
+    padding: 20px 16px;
+  }
+
+  .welcome-logo {
+    font-size: 48px;
+  }
+
+  .welcome-screen h2 {
+    font-size: 22px;
+  }
+
+  .suggestion-chips {
+    gap: 8px;
+  }
+
+  .chip {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+
+  .input-area {
+    padding: 8px 12px max(12px, env(safe-area-inset-bottom));
+  }
+
+  .input-disclaimer {
+    display: none;
+  }
+
+  .user-credentials-bar {
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+
+  .admin-steps {
+    gap: 12px;
+  }
+
+  .admin-step {
+    padding: 12px;
+  }
+
+  .admin-step p {
+    font-size: 13px;
   }
 }

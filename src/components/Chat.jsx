@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSidebar } from '../hooks/useSidebar';
 
 function Message({ role, content }) {
   return (
@@ -36,7 +37,7 @@ export default function Chat({ user, onLogout }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [awaitingReply, setAwaitingReply] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const { sidebarOpen, closeSidebar, toggleSidebar } = useSidebar();
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -86,6 +87,7 @@ export default function Chat({ user, onLogout }) {
     setActiveConv(data.conversation.id);
     setMessages([]);
     setAwaitingReply(false);
+    closeSidebar();
     inputRef.current?.focus();
   };
 
@@ -144,8 +146,16 @@ export default function Chat({ user, onLogout }) {
     }
   };
 
+  const openConversation = (convId) => {
+    loadMessages(convId);
+    closeSidebar();
+  };
+
   return (
     <div className="chat-layout">
+      {sidebarOpen && (
+        <div className="sidebar-backdrop" onClick={closeSidebar} aria-hidden="true" />
+      )}
       <aside className={`sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
         <div className="sidebar-header">
           <button className="new-chat-btn" onClick={newConversation}>
@@ -158,7 +168,7 @@ export default function Chat({ user, onLogout }) {
             <div
               key={conv.id}
               className={`conv-item ${activeConv === conv.id ? 'active' : ''}`}
-              onClick={() => loadMessages(conv.id)}
+              onClick={() => openConversation(conv.id)}
             >
               <span className="conv-icon">💬</span>
               <span className="conv-title">{conv.title}</span>
@@ -188,7 +198,7 @@ export default function Chat({ user, onLogout }) {
         <header className="chat-header">
           <button
             className="sidebar-toggle"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
+            onClick={toggleSidebar}
           >
             ☰
           </button>

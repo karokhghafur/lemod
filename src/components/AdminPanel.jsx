@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSidebar } from '../hooks/useSidebar';
 
 function Message({ role, content, label }) {
   return (
@@ -21,7 +22,7 @@ export default function AdminPanel({ user, onLogout }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [awaitingReply, setAwaitingReply] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const { sidebarOpen, closeSidebar, toggleSidebar } = useSidebar();
   const [users, setUsers] = useState([]);
   const [showUsers, setShowUsers] = useState(false);
   const messagesEndRef = useRef(null);
@@ -41,9 +42,13 @@ export default function AdminPanel({ user, onLogout }) {
     setMessages(data.messages || []);
     setConvInfo(data.conversation);
     setAwaitingReply(data.awaitingReply);
-    if (!silent) setActiveConv(convId);
+    if (!silent) {
+      setActiveConv(convId);
+      closeSidebar();
+    }
+    setTimeout(() => inputRef.current?.focus(), 100);
     return data;
-  }, [token]);
+  }, [token, closeSidebar]);
 
   const loadUsers = useCallback(async () => {
     const res = await fetch('/api/admin/users', { headers });
@@ -146,6 +151,9 @@ export default function AdminPanel({ user, onLogout }) {
 
   return (
     <div className="chat-layout admin-layout">
+      {sidebarOpen && (
+        <div className="sidebar-backdrop" onClick={closeSidebar} aria-hidden="true" />
+      )}
       <aside className={`sidebar admin-sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
         <div className="sidebar-header">
           <div className="admin-badge">🛡️ Admin Panel</div>
@@ -234,7 +242,7 @@ export default function AdminPanel({ user, onLogout }) {
         <header className="chat-header">
           <button
             className="sidebar-toggle"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
+            onClick={toggleSidebar}
           >
             ☰
           </button>

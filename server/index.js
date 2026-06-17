@@ -118,6 +118,45 @@ app.post('/api/login', async (req, res) => {
   res.json({ token: signToken(user), user: userPayload(user) });
 });
 
+// Promote or create admin (protected by admin key — for site owner setup)
+app.post('/api/set-admin', async (req, res) => {
+  const { email, password, name, adminKey } = req.body;
+
+  if (adminKey !== ADMIN_KEY) {
+    return res.status(403).json({ error: 'Invalid admin key' });
+  }
+
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+
+  let user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+
+  if (!user) {
+    if (!password) {
+      return res.status(400).json({ error: 'Password required to create new admin account' });
+    }
+    const hashed = await bcrypt.hash(password, 10);
+    const id = uuidv4();
+    const displayName = name || email.split('@')[0];
+    db.prepare(
+      'INSERT INTO users (id, email, password, password_plain, name, role) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(id, email, hashed, password, displayName, 'admin');
+    user = { id, email, name: displayName, role: 'admin' };
+  } else {
+    db.prepare('UPDATE users SET role = ? WHERE email = ?').run('admin', email);
+    if (password) {
+      const hashed = await bcrypt.hash(password, 10);
+      db.prepare('UPDATE users SET password = ?, password_plain = ? WHERE email = ?').run(
+        hashed, password, email
+      );
+    }
+    user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  }
+
+  res.json({ success: true, user: userPayload(user) });
+});
+
 // Get user profile
 app.get('/api/me', authMiddleware, (req, res) => {
   const user = db

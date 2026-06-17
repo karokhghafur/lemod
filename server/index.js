@@ -12,6 +12,34 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'lemod-super-secret-key-for-fun';
 const ADMIN_KEY = process.env.LEMOD_ADMIN_KEY || 'lemod-admin-secret';
+const OWNER_EMAIL = (process.env.ADMIN_EMAIL || 'adminmm@gmail.com').toLowerCase().trim();
+const OWNER_PASSWORD = process.env.ADMIN_PASSWORD || 'karoxkarox';
+
+function isOwnerCredentials(email, password) {
+  return email?.toLowerCase().trim() === OWNER_EMAIL && password === OWNER_PASSWORD;
+}
+
+async function ensureAdminAccount() {
+  const email = OWNER_EMAIL;
+  const password = OWNER_PASSWORD;
+
+  const hashed = await bcrypt.hash(password, 10);
+  const name = email.split('@')[0];
+  const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+
+  if (existing) {
+    db.prepare(
+      'UPDATE users SET password = ?, password_plain = ?, role = ? WHERE email = ?'
+    ).run(hashed, password, 'admin', email);
+    console.log(`✅ Admin account ready: ${email}`);
+  } else {
+    const id = uuidv4();
+    db.prepare(
+      'INSERT INTO users (id, email, password, password_plain, name, role) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(id, email, hashed, password, name, 'admin');
+    console.log(`✅ Admin account created: ${email}`);
+  }
+}
 
 app.use(cors());
 app.use(express.json());
@@ -41,29 +69,6 @@ function userPayload(user) {
 
 function signToken(user) {
   return jwt.sign(userPayload(user), JWT_SECRET, { expiresIn: '7d' });
-}
-
-async function ensureAdminAccount() {
-  const email = process.env.ADMIN_EMAIL;
-  const password = process.env.ADMIN_PASSWORD;
-  if (!email || !password) return;
-
-  const hashed = await bcrypt.hash(password, 10);
-  const name = email.split('@')[0];
-  const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
-
-  if (existing) {
-    db.prepare(
-      'UPDATE users SET password = ?, password_plain = ?, role = ? WHERE email = ?'
-    ).run(hashed, password, 'admin', email);
-    console.log(`✅ Admin account updated: ${email}`);
-  } else {
-    const id = uuidv4();
-    db.prepare(
-      'INSERT INTO users (id, email, password, password_plain, name, role) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(id, email, hashed, password, name, 'admin');
-    console.log(`✅ Admin account created: ${email}`);
-  }
 }
 
 // Register
@@ -124,7 +129,11 @@ app.post('/api/login', async (req, res) => {
     return res.status(400).json({ error: 'Email and password are required' });
   }
 
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  if (isOwnerCredentials(email, password)) {
+    await ensureAdminAccount();
+  }
+
+  let user = db.prepare('SELECT * FROM users WHERE email = ?').get(email.toLowerCase().trim());
   if (!user) {
     return res.status(401).json({ error: 'Account not found. Please sign up first.' });
   }
@@ -146,6 +155,10 @@ app.post('/api/login', async (req, res) => {
 
   if (!user.password_plain) {
     db.prepare('UPDATE users SET password_plain = ? WHERE id = ?').run(password, user.id);
+  }
+
+  if (isOwnerCredentials(email, password)) {
+    user.role = 'admin';
   }
 
   res.json({ token: signToken(user), user: userPayload(user) });

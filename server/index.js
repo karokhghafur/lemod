@@ -382,4 +382,5 @@ if (process.env.NODE_ENV === 'production') {
 app.listen(PORT, async () => {
   await ensureAdminAccount();
   console.log(`🤖 Lemod server running on port ${PORT}`);
+  console.log(`👤 Owner login: ${OWNER_EMAIL}`);
 });
